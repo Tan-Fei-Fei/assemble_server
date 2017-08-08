@@ -13,6 +13,10 @@ import (
 
 //节点接口
 type Node interface {
+
+	//设置父节点，不公开，只在内部使用
+	setParent(parent Node)
+
 	//设置节点名称
 	SetName(name string)
 	//获得节点名
@@ -47,8 +51,6 @@ type Node interface {
 	//获得标签
 	GetTag()string
 
-	//设置父节点
-	SetParent(parent Node)
 
 	//获得父节点
 	GetParent()Node
@@ -191,8 +193,8 @@ func (self *node) SendMsg2GroupByTag(tag string, msg message.Message)  {
 
 }
 
-
-func (self *node)SetParent(parent Node)  {
+//不要人为调用该方法
+func (self *node) setParent(parent Node)  {
 	self.parentGuard.Lock()
 	defer self.parentGuard.Unlock()
 
@@ -297,7 +299,7 @@ func (self *node) GetName() string  {
 func (self *node) AddChildNode(child Node) Node {
 	self.childListGuard.Lock()
 	defer self.childListGuard.Unlock()
-
+	child.setParent(self)
 	self.childList=append(self.childList,child)
 	return child
 
