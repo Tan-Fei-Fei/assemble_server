@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"assemble_server/core/message"
+	"assemble_server/core/component"
+	"fmt"
 )
 
 
@@ -55,6 +57,10 @@ type Node interface {
 	SendMsg2Child(name string, msg message.Message)
 
 	//通过名字给指定孩子节点发送消息
+	SendMsg2Parent(msg message.Message)
+
+
+	//通过名字给指定孩子节点发送消息
 	SendMsg2GroupByTag(tag string, msg message.Message)
 
 	//给孩子所有孩子节点发送消息
@@ -63,7 +69,14 @@ type Node interface {
 	//获得消息通道
 	GetMsgChannel() chan<-message.Message
 
+	//添加组件
+	AddComponent(key string,comp component.Component) component.Component
 
+	//删除组件
+	RemoveComponent(key string) component.Component
+
+	//获取组件
+	GetComponent(key string)component.Component
 
 }
 
@@ -84,18 +97,61 @@ type node struct {
 	nameGuard sync.RWMutex
 	//标记读写锁
 	tagGuard sync.RWMutex
-	//孩子列表读写锁
+	//孩子切片读写锁
 	childListGuard sync.RWMutex
 	//消息通道
 	msgChannel chan<- message.Message
+	//组件表
+	componentMap map[string]component.Component
+	//组件表读写锁
+	componentMapGuard sync.RWMutex
 
 
 }
 
 //创建一个节点方法
 func  NewNode() Node {
-	return &node{childList: make([]Node,0), msgChannel: make(chan <-message.Message)}
+	return &node{childList: make([]Node,0),
+		         msgChannel: make(chan <-message.Message),
+				 componentMap:make(map[string]component.Component)}
 }
+
+func (self * node)GetComponent(key string)component.Component  {
+	self.componentMapGuard.RLock()
+	defer self.componentMapGuard.RUnlock()
+	return self.componentMap[key]
+}
+
+func (self *node)AddComponent(key string,comp component.Component) component.Component {
+	self.componentMapGuard.Lock()
+	defer self.componentMapGuard.Unlock()
+
+	comp,exits:=self.componentMap[key]
+	if exits{
+		panic(fmt.Sprintf( "该key: %s 已经存在",key))
+	}else {
+
+		self.componentMap[key]=comp
+	}
+
+	return comp
+}
+
+func (self *node)RemoveComponent(key string) component.Component{
+	self.componentMapGuard.Lock()
+	defer self.componentMapGuard.Unlock()
+	comp,exits:=self.componentMap[key]
+	if exits{
+		delete(self.componentMap,key)
+	}else {
+
+		panic(fmt.Sprintf( "该key: %s 不存在",key))
+	}
+
+	return comp
+}
+
+
 
 func (self *node) GetMsgChannel()chan<-message.Message  {
 
@@ -113,6 +169,17 @@ func (self *node)Broadcast(msg message.Message){
 func (self *node) SendMsg2Child(name string, msg message.Message)  {
 	targetNode:=self.GetChildNodeByName(name)
 	targetNode.GetMsgChannel() <-msg
+
+}
+
+
+
+func (self *node) SendMsg2Parent(msg message.Message){
+	if self.parent!=nil{
+		self.parent.GetMsgChannel()<-msg
+	}else {
+		panic("该节点没有父节点，复发发送消息")
+	}
 
 }
 
