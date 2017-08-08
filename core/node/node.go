@@ -14,6 +14,14 @@ type Node interface {
 
 	//添加孩子节点
 	AddChildNode(child Node) Node
+
+	//通过名称删除第一个符合条件的孩子节点
+	RemoveChildNodeByName(name string) Node
+	//通过名称删除所有符合条件的孩子节点
+	RemoveChildNodesByName(name string)
+	//删除所有孩子节点
+	ClearChildNodes()
+
 	//获得所有孩子节点
 	GetChildNodes() []Node
 	//根据名称获得孩子节点
@@ -47,6 +55,36 @@ func (self *node) SetName(name string)  {
 
 }
 
+//通过名称删除第一个孩子节点
+func (self *node)RemoveChildNodeByName(name string) (removeNode Node)  {
+	index:=0
+	for ;index<len(self.childList);index++{
+		if self.childList[index].GetName()==name{
+			break
+		}
+	}
+	removeNode=self.childList[index]
+	self.childList= append(self.childList[0:index],self.childList[index+1:]...)
+
+	return
+}
+
+
+
+//通过名称删除所有符合条件的孩子节点
+func (self *node)RemoveChildNodesByName(name string)  {
+
+	newList:=[]Node{}
+	for i :=0; i <len(self.childList); i++{
+		if self.childList[i].GetName()!=name{
+			newList=append(newList,self.childList[i])
+		}
+
+	}
+
+	self.childList=newList
+
+}
 //获得节点名
 func (self *node) GetName() string  {
 	return self.name
@@ -85,4 +123,11 @@ func (self *node)GetChildNodesByName(name string) []Node  {
 	}
 
 	return childList
+}
+
+
+func (self *node) ClearChildNodes() {
+
+	self.childList=[]Node{}
+
 }
