@@ -4,11 +4,10 @@ import (
 	_ "assemble_server/core/component"
 	"sync"
 
+	"assemble_server/core/message"
 )
 
-type Test interface {
-	setName()
-}
+
 
 //节点接口
 type Node interface {
@@ -52,11 +51,18 @@ type Node interface {
 	//获得父节点
 	GetParent()Node
 
+	//通过名字给指定孩子节点发送消息
+	SendMsg2Child(name string, msg message.Message)
 
-	////添加组件
-	//AddComponent(comp *component.Component) *component.Component
-	////获得组件
-	//GetComponent() *component.Component
+	//通过名字给指定孩子节点发送消息
+	SendMsg2GroupByTag(tag string, msg message.Message)
+
+	//给孩子所有孩子节点发送消息
+	Broadcast(msg message.Message)
+
+	//获得消息通道
+	GetMsgChannel() chan<-message.Message
+
 
 
 }
@@ -80,14 +86,44 @@ type node struct {
 	tagGuard sync.RWMutex
 	//孩子列表读写锁
 	childListGuard sync.RWMutex
+	//消息通道
+	msgChannel chan<- message.Message
 
 
 }
 
 //创建一个节点方法
 func  NewNode() Node {
-	return &node{childList: make([]Node,0)}
+	return &node{childList: make([]Node,0), msgChannel: make(chan <-message.Message)}
 }
+
+func (self *node) GetMsgChannel()chan<-message.Message  {
+
+	return self.msgChannel
+
+}
+
+func (self *node)Broadcast(msg message.Message){
+	childList:=self.GetChildNodes()
+	for _,child:=range childList{
+		child.GetMsgChannel()<-msg
+	}
+}
+
+func (self *node) SendMsg2Child(name string, msg message.Message)  {
+	targetNode:=self.GetChildNodeByName(name)
+	targetNode.GetMsgChannel() <-msg
+
+}
+
+func (self *node) SendMsg2GroupByTag(tag string, msg message.Message)  {
+	childList:=self.GetChildNodesByTag(tag)
+	for _,child:=range childList{
+		child.GetMsgChannel()<-msg
+	}
+
+}
+
 
 func (self *node)SetParent(parent Node)  {
 	self.parentGuard.Lock()
